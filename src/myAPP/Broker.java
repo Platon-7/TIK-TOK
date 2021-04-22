@@ -1,25 +1,65 @@
 package myAPP;
 
-import myAPP.Node;
-import myAPP.Publisher;
-
 import java.util.List;
 
-public interface Broker extends Node {
-    List <Consumer> registeredUsers = null;
-    List <Publisher> registeredPublishers = null;
+public class Broker implements BrokerInterface{
+    @Override
+    public void calculateKeys() {
 
-    void calculateKeys();
+    }
 
-    Publisher acceptConnection(Publisher publisher);
+    @Override
+    public Publisher acceptConnection(Publisher publisher) {
+        return null;
+    }
 
-    Consumer acceptConnection(Consumer consumer);
+    @Override
+    public Consumer acceptConnection(Consumer consumer) {
+        return null;
+    }
 
-    void notifyPublisher(String consumer);
+    @Override
+    public void notifyPublisher(String consumer) {
 
-    void notifyBrokersOnChanges();
+    }
 
-    void pull(String a);
+    @Override
+    public void notifyBrokersOnChanges() {
 
-    void filterConsumers(String a);
+    }
+
+    @Override
+    public void pull(String a) {
+
+    }
+
+    @Override
+    public void filterConsumers(String a) {
+
+    }
+
+    @Override
+    public void init() {
+
+    }
+
+    @Override
+    public List<BrokerInterface> getBrokers() {
+        return null;
+    }
+
+    @Override
+    public void connect() {
+
+    }
+
+    @Override
+    public void disconnect() {
+
+    }
+
+    @Override
+    public void updateNodes() {
+
+    }
 }

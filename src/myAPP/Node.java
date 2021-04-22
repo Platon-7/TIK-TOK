@@ -6,11 +6,11 @@ import org.apache.tika.Tika;
 public interface Node {
 
     Tika tika = new Tika();
-    List<Broker> brokers = null;
+    List<BrokerInterface> brokers = null;
 
     void init();//eixe int orisma
 
-    List<Broker> getBrokers();
+    List<BrokerInterface> getBrokers();
 
     void connect();
 
