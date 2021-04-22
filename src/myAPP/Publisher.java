@@ -3,11 +3,13 @@ package myAPP;
 import java.util.ArrayList;
 import java.util.List;
 
+
 public class Publisher implements PublisherInterface {
 
     ChannelName channelName;
 
     public Publisher() {
+
     }
 
     @Override
