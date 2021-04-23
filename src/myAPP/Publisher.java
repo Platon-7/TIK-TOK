@@ -28,22 +28,22 @@ public class Publisher implements PublisherInterface {
     @Override
     public void init() {
         try {
-            //detecting Mp4 files already published
+            //detecting all files already published
             ArrayList<String> filenames = (ArrayList)Files.list(Paths.get("Videos/")).filter(Files::isRegularFile)
                     .map(p -> p.getFileName().toString()).collect(Collectors.toList());
             for (int i=0;i< filenames.size();i++) {
                 ArrayList<String> mylist = null;
                 BodyContentHandler handler = new BodyContentHandler();
                 Metadata metadata = new Metadata();
+                //detecting Mp4 files already published
                 if(filenames.get(i).contains(".mp4")) {
-
                     FileInputStream inputstream = new FileInputStream(new File("Videos/" + filenames.get(i)));
                     ParseContext pcontext = new ParseContext();
-                    //Html parser
                     MP4Parser MP4Parser = new MP4Parser();
                     MP4Parser.parse(inputstream, handler, metadata, pcontext);
 
                 }else{
+                    //detecting txt files already published
                     try {
                         FileReader reader = new FileReader("Videos/" + filenames.get(i));
                         BufferedReader breader = new BufferedReader(reader);
@@ -60,6 +60,7 @@ public class Publisher implements PublisherInterface {
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
+                    //adding hashtags to channel name
                     if(channelName.hashtagsPublished.isEmpty()){
                         channelName.hashtagsPublished.addAll(mylist);
                     }else
@@ -71,6 +72,7 @@ public class Publisher implements PublisherInterface {
                         }
                     }
                 }
+                //assuming every MP4 file is followed by TXT with hashtags to create video file
                 if(!(i+1> filenames.size())) {
                     if (filenames.get(i + 1).contains(".mp4")) {
 
@@ -81,13 +83,13 @@ public class Publisher implements PublisherInterface {
                         published.add(value);
                     }
                 }else{
-                    if (filenames.get(i).contains(".mp4")){
+
                         VideoFile video = new VideoFile(filenames.get(i).substring(0, filenames.get(i).length() - 4), channelName.channelName, metadata.get("meta:creation-date"),
                                 metadata.get("xmpDM:duration"), null, metadata.get("tiff:ImageWidth"),
                                 metadata.get("tiff:ImageLength"), mylist, null);
                         Value value = new Value(video);
                         published.add(value);
-                    }
+
                 }
 
 
@@ -163,28 +165,38 @@ public class Publisher implements PublisherInterface {
     public ArrayList<Value> generateChunks(String key){
 
 
-        FileInputStream unchunkedmp4 = null;
-        try
-        {
-            unchunkedmp4 = new FileInputStream("Videos/attempt_1.mp4");
 
-            byte [] byteArr = IOUtils.toByteArray(unchunkedmp4);
+
             for(int i=0;i<published.size();i++){
+                //if key==Channel name or key== video name
                 if(key.equalsIgnoreCase(published.get(i).getVideoFile().channelName)||key.equalsIgnoreCase(published.get(i).getVideoFile().videoName)){
-                    published.get(i).getVideoFile().setVideoFileChunk(byteArr);
+                    try {
+                        FileInputStream unchunkedmp4 = new FileInputStream("Videos/"+published.get(i).getVideoFile().videoName+".mp4" );
+                        byte [] byteArr = IOUtils.toByteArray(unchunkedmp4);
+                        published.get(i).getVideoFile().setVideoFileChunk(byteArr);
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
                 for(int j=0;j<published.get(i).getVideoFile().getAssociatedHashtags().size();j++){
+                    //if key==one of the hashtags
                     if(key.equalsIgnoreCase(published.get(i).getVideoFile().getAssociatedHashtags().get(j))){
-                        if(key.equalsIgnoreCase(published.get(i).getVideoFile().channelName)){
-                            published.get(i).getVideoFile().setVideoFileChunk(byteArr);
-                        }
+                            try {
+                                FileInputStream unchunkedmp4 = new FileInputStream("Videos/"+published.get(i).getVideoFile().videoName+".mp4" );
+                                byte [] byteArr = IOUtils.toByteArray(unchunkedmp4);
+                                published.get(i).getVideoFile().setVideoFileChunk(byteArr);
+                            } catch (FileNotFoundException e) {
+                                e.printStackTrace();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
                     }
                 }
             }
 
-        }
-        catch (IOException ioe)
-        {}
+
 
 
         return published;
