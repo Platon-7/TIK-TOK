@@ -18,16 +18,16 @@ public class Main {
             //detecting the file type
             BodyContentHandler handler = new BodyContentHandler();
             Metadata metadata = new Metadata();
-            FileInputStream inputstream = new FileInputStream("Videos/attempt_1.mp4");
+            FileInputStream inputstream = new FileInputStream("Videos/attempt_2.mp4");
             ParseContext pcontext = new ParseContext();
             //Html parser
             MP4Parser MP4Parser = new MP4Parser();
             MP4Parser.parse(inputstream, handler, metadata,pcontext);
-            System.out.println("Contents of the document:  :" + handler.toString());
-            System.out.println("Metadata of the document:");
+            System.out.println("Contents of the document:  :" + metadata.get("xmpDM:durat"));
+
             String[] metadataNames = metadata.names();
 
-
+            System.out.println("Metadata of the document:");
             for(String name : metadataNames) {
                 System.out.println(name + ": " + metadata.get(name));
             }
