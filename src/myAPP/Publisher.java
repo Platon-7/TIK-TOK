@@ -28,7 +28,7 @@ public class Publisher implements PublisherInterface {
     @Override
     public void init() {
         try {
-            //detecting all files already published
+            //detecting all files already published in directory videos
             ArrayList<String> filenames = (ArrayList)Files.list(Paths.get("Videos/")).filter(Files::isRegularFile)
                     .map(p -> p.getFileName().toString()).collect(Collectors.toList());
             for (int i=0;i< filenames.size();i++) {
