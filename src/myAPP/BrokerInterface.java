@@ -1,11 +1,8 @@
 package myAPP;
 
-import myAPP.Node;
-import myAPP.Publisher;
-
 import java.util.List;
 
-public interface BrokerInterface extends Node {
+public interface BrokerInterface extends AppNodeInterface {
     List <Consumer> registeredUsers = null;
     List <Publisher> registeredPublishers = null;
 

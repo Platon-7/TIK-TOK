@@ -7,7 +7,9 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.mp4.MP4Parser;
 import org.apache.tika.sax.BodyContentHandler;
 import org.xml.sax.SAXException;
-
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -17,12 +19,16 @@ import java.util.stream.Collectors;
 
 
 public class Publisher implements PublisherInterface {
-
-    ChannelName channelName;
+    ServerSocket providerSocket;
+    Socket connection = null;
+    private DataOutputStream output; // output stream to client
+    private InputStream input; // input stream from client
+    ChannelName channelName=new ChannelName("tiktoker");
     ArrayList<Value> published =new ArrayList<>();
 
     public Publisher() {
-    channelName.channelName="tiktokers";
+
+    init();
     }
 
     @Override
@@ -32,33 +38,35 @@ public class Publisher implements PublisherInterface {
             ArrayList<String> filenames = (ArrayList)Files.list(Paths.get("Videos/")).filter(Files::isRegularFile)
                     .map(p -> p.getFileName().toString()).collect(Collectors.toList());
             for (int i=0;i< filenames.size();i++) {
-                ArrayList<String> mylist = null;
+                System.out.println(filenames.get(i));
+                ArrayList<String> mylist = new ArrayList<>();
                 BodyContentHandler handler = new BodyContentHandler();
                 Metadata metadata = new Metadata();
                 //detecting Mp4 files already published
                 if(filenames.get(i).contains(".mp4")) {
-                    FileInputStream inputstream = new FileInputStream(new File("Videos/" + filenames.get(i)));
+                    System.out.println("mp4 if");
+                    FileInputStream inputstream = new FileInputStream("Videos/" + filenames.get(i));
                     ParseContext pcontext = new ParseContext();
                     MP4Parser MP4Parser = new MP4Parser();
                     MP4Parser.parse(inputstream, handler, metadata, pcontext);
 
-                }else{
+                }if(filenames.get(i).contains(".txt")) {
+                    System.out.println("txt if");
                     //detecting txt files already published
                     try {
                         FileReader reader = new FileReader("Videos/" + filenames.get(i));
-                        BufferedReader breader = new BufferedReader(reader);
-                        while(breader.readLine() !=null) {
+                        BufferedReader breader = new BufferedReader(new FileReader("Videos/" + filenames.get(i)));
+
                             String a = breader.readLine();//diabazoyme to .txt to kanoyme split me ta # kai meta epeidh ta kobei ta prosthetoyme
+                            System.out.println(a);
                             String tags[] = a.split("#");
                             for (int j = 0; j < tags.length; j++) {
                                 mylist.add("#" + tags[j]);
                             }
-                        }
-                    } catch (FileNotFoundException e) {
-                        e.printStackTrace();
 
                     } catch (IOException e) {
                         e.printStackTrace();
+
                     }
                     //adding hashtags to channel name
                     if(channelName.hashtagsPublished.isEmpty()){
@@ -73,7 +81,7 @@ public class Publisher implements PublisherInterface {
                     }
                 }
                 //assuming every MP4 file is followed by TXT with hashtags to create video file
-                if(!(i+1> filenames.size())) {
+                if(!((i+1)== filenames.size())) {
                     if (filenames.get(i + 1).contains(".mp4")) {
 
                         VideoFile video = new VideoFile(filenames.get(i).substring(0, filenames.get(i).length() - 4), channelName.channelName, metadata.get("meta:creation-date"),
@@ -95,16 +103,12 @@ public class Publisher implements PublisherInterface {
 
 
             }
-            } catch(FileNotFoundException e){
-                e.printStackTrace();
-            } catch(TikaException e){
-                e.printStackTrace();
-            } catch(IOException e){
+            } catch(TikaException | IOException e){
                 e.printStackTrace();
             } catch(SAXException e){
                 e.printStackTrace();
             }
-
+            generateChunks("tiktoker");
     }
 
     @Override
@@ -114,6 +118,24 @@ public class Publisher implements PublisherInterface {
 
     @Override
     public void connect() {
+        try {
+            //Δημιουργία serverSocket που ακούει στην πόρτα 4321
+            //και έχει μέγεθος ουράς 10
+            providerSocket = new ServerSocket(4321, 10);
+
+
+            //Αναμονή για σύνδεση με πελάτη
+            System.out.println("Waiting for connection");
+            connection = providerSocket.accept();
+            System.out.println( "Connection received from: " +
+                    connection.getInetAddress().getHostName() );
+            output = new DataOutputStream(connection.getOutputStream());
+            output.flush(); // flush output buffer to send header information
+            input =  connection.getInputStream() ;
+
+        } catch (IOException ioException) {
+            ioException.printStackTrace();
+        }
 
     }
 
@@ -151,6 +173,17 @@ public class Publisher implements PublisherInterface {
 
     }
 
+
+    public void push(String key/*, Value value*/) {
+        //try {
+        //    generateChunks(key);
+        //    out.writeObject(published.get(1));
+        //    out.flush();
+       // } catch (IOException e) {
+       //     e.printStackTrace();
+       // }
+    }
+
     @Override
     public void notifyFailure(BrokerInterface broker) {
 
@@ -164,12 +197,10 @@ public class Publisher implements PublisherInterface {
     @Override
     public ArrayList<Value> generateChunks(String key){
 
-
-
-
             for(int i=0;i<published.size();i++){
-                //if key==Channel name or key== video name
-                if(key.equalsIgnoreCase(published.get(i).getVideoFile().channelName)||key.equalsIgnoreCase(published.get(i).getVideoFile().videoName)){
+                //if key==Channel name
+                System.out.println("Published size " + published.size());
+                if(key.equalsIgnoreCase(published.get(i).getVideoFile().channelName)){
                     try {
                         FileInputStream unchunkedmp4 = new FileInputStream("Videos/"+published.get(i).getVideoFile().videoName+".mp4" );
                         byte [] byteArr = IOUtils.toByteArray(unchunkedmp4);
@@ -200,5 +231,18 @@ public class Publisher implements PublisherInterface {
 
 
         return published;
+    }
+    public static void main(String args[]){
+        Publisher pub=new Publisher();
+        pub.connect();
+        try {
+            System.out.println("lenth "+ pub.published.get(0).getVideoFile().videoFileChunk.length);
+            pub.output.writeInt(pub.published.get(0).getVideoFile().videoFileChunk.length);
+            pub.output.write(pub.published.get(0).getVideoFile().videoFileChunk);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
     }
 }

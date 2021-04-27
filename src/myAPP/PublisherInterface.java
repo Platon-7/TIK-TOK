@@ -2,7 +2,7 @@ package myAPP;
 
 import java.util.ArrayList;
 
-public interface PublisherInterface extends Node {
+public interface PublisherInterface extends AppNodeInterface {
 
     // channelName;
 
