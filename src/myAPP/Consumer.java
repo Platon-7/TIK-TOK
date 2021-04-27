@@ -4,10 +4,11 @@ import java.io.*;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.List;
+import java.util.Scanner;
 
 public class Consumer implements ConsumerInterface {
     Socket requestSocket = null;
-    OutputStream out;
+    DataOutputStream out;
     //ροή για να παίρνεις δεδομένα από τον διακομιστή
     DataInputStream in;
     @Override
@@ -22,12 +23,54 @@ public class Consumer implements ConsumerInterface {
 
     @Override
     public void playData(String data, Value value) {
+        System.out.println("ENTERED PLAY DATA");
+        int length= 0;
+        try {
 
+            length = in.readInt();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        if(length>0){
+            byte[] message = new byte[length];
+            try {
+                in.readFully(message, 0, message.length); // read the message
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            System.out.println(message.length);
+            File mp4=new File("prodVideo/attempt_3.mp4");
+            OutputStream os= null;
+            try {
+                os = new FileOutputStream(mp4);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            try {
+                os.write(message);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     @Override
     public void init() {
+        Scanner in=new Scanner(System.in);
+       // do{
+           // System.out.println("Please enter video search: ");
+            //String key=in.nextLine();
+           // System.out.println(key);
+            try {
+                out.writeUTF("#victory");
+                System.out.println("SENT key");
 
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            playData("#victory",null);
+       // }while(!in.nextLine().equals("end"));
     }
 
     @Override
@@ -44,7 +87,7 @@ public class Consumer implements ConsumerInterface {
             requestSocket = new Socket("127.0.0.1", 4322);
 
             //Obtain Socket’s OutputStream and use it to initialize ObjectOutputStream
-            out = requestSocket.getOutputStream();
+            out = new DataOutputStream(requestSocket.getOutputStream());
 
             //Obtain Socket’s InputStream and use it to initialize ObjectInputStream
             in = new DataInputStream(requestSocket.getInputStream());
@@ -69,34 +112,7 @@ public class Consumer implements ConsumerInterface {
     public static void main(String[] args){
         Consumer cons=new Consumer();
         cons.connect();
-        int length= 0;
-        try {
-            length = cons.in.readInt();
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        if(length>0){
-            byte[] message = new byte[length];
-            try {
-                cons.in.readFully(message, 0, message.length); // read the message
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            System.out.println(message.length);
-            File mp4=new File("prodVideo/attempt_2.mp4");
-            OutputStream os= null;
-            try {
-                os = new FileOutputStream(mp4);
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            }
-            try {
-                os.write(message);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+        cons.init();
 
     }
 }

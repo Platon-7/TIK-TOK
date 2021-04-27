@@ -8,13 +8,13 @@ import java.util.List;
 
 public class Broker implements BrokerInterface{
     Socket requestSocket = null;
-    OutputStream out;
+    DataOutputStream out;
     //ροή για να παίρνεις δεδομένα από τον διακομιστή
     DataInputStream in;
     ServerSocket providerSocket;
     Socket connection = null;
     private DataOutputStream output; // output stream to client
-    private InputStream input; // input stream from client
+    private DataInputStream input; // input stream from client
     @Override
     public void calculateKeys() {
 
@@ -40,11 +40,19 @@ public class Broker implements BrokerInterface{
                 connection.getInetAddress().getHostName() );
         output = new DataOutputStream(connection.getOutputStream());
         output.flush(); // flush output buffer to send header information
-        input =  connection.getInputStream() ;
+        input =  new DataInputStream(connection.getInputStream() );
+            try {
+                String key =input.readUTF();
+                System.out.println("RECEIVED KEY" +key);
+                pull(key);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
 
     } catch (IOException ioException) {
         ioException.printStackTrace();
     }
+
         return null;
     }
 
@@ -60,11 +68,37 @@ public class Broker implements BrokerInterface{
 
     @Override
     public void pull(String a) {
-        //try {
-           // output.writeObject(a);
-       // } catch (IOException e) {
-       //     e.printStackTrace();
-       // }
+        System.out.println("pull with" +a);
+        Consumer cons=new Consumer();
+        try {
+            out.writeUTF(a);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        int length= 0;
+        try {
+            System.out.println("waiting for length");
+            length = in.readInt();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        if(length>0){
+            byte[] message = new byte[length];
+            try {
+                in.readFully(message, 0, message.length); // read the message
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            acceptConnection(cons);
+            try {
+                System.out.println("length "+ message);
+                output.writeInt(message.length);
+                output.write(message);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     @Override
@@ -92,7 +126,7 @@ public class Broker implements BrokerInterface{
             requestSocket = new Socket("127.0.0.1", 4321);
 
             //Obtain Socket’s OutputStream and use it to initialize ObjectOutputStream
-            out = requestSocket.getOutputStream();
+            out = new DataOutputStream(requestSocket.getOutputStream());
 
             //Obtain Socket’s InputStream and use it to initialize ObjectInputStream
             in = new DataInputStream(requestSocket.getInputStream());
@@ -117,31 +151,11 @@ public class Broker implements BrokerInterface{
     }
     public static void main(String[] args){
         Broker broker=new Broker();
-        Consumer cons=new Consumer();
         broker.connect();
-        int length= 0;
-        try {
-            length = broker.in.readInt();
+        Consumer cons=new Consumer();
+        broker.acceptConnection(cons);
 
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        if(length>0){
-            byte[] message = new byte[length];
-            try {
-                broker.in.readFully(message, 0, message.length); // read the message
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            broker.acceptConnection(cons);
-            try {
-                System.out.println("lenth "+ message);
-                broker.output.writeInt(message.length);
-                broker.output.write(message);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+
 
     }
 

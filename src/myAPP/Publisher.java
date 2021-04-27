@@ -22,7 +22,7 @@ public class Publisher implements PublisherInterface {
     ServerSocket providerSocket;
     Socket connection = null;
     private DataOutputStream output; // output stream to client
-    private InputStream input; // input stream from client
+    private DataInputStream input; // input stream from client
     ChannelName channelName=new ChannelName("tiktoker");
     ArrayList<Value> published =new ArrayList<>();
 
@@ -131,7 +131,7 @@ public class Publisher implements PublisherInterface {
                     connection.getInetAddress().getHostName() );
             output = new DataOutputStream(connection.getOutputStream());
             output.flush(); // flush output buffer to send header information
-            input =  connection.getInputStream() ;
+            input = new DataInputStream(connection.getInputStream());
 
         } catch (IOException ioException) {
             ioException.printStackTrace();
@@ -175,13 +175,18 @@ public class Publisher implements PublisherInterface {
 
 
     public void push(String key/*, Value value*/) {
-        //try {
-        //    generateChunks(key);
-        //    out.writeObject(published.get(1));
-        //    out.flush();
-       // } catch (IOException e) {
-       //     e.printStackTrace();
-       // }
+        generateChunks(key);
+        for(int i=0;i<published.size();i++){
+            if(published.get(i).getVideoFile().associatedHashtags.contains(key)||channelName.channelName.equals(key)){
+        try {
+            System.out.println("length "+ published.get(i).getVideoFile().videoFileChunk.length);
+            output.writeInt(published.get(i).getVideoFile().videoFileChunk.length);
+            output.write(published.get(i).getVideoFile().videoFileChunk);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        }
+        }
     }
 
     @Override
@@ -226,22 +231,18 @@ public class Publisher implements PublisherInterface {
                     }
                 }
             }
-
-
-
-
         return published;
     }
     public static void main(String args[]){
         Publisher pub=new Publisher();
         pub.connect();
         try {
-            System.out.println("lenth "+ pub.published.get(0).getVideoFile().videoFileChunk.length);
-            pub.output.writeInt(pub.published.get(0).getVideoFile().videoFileChunk.length);
-            pub.output.write(pub.published.get(0).getVideoFile().videoFileChunk);
+            String key=pub.input.readUTF();
+            pub.push(key);
         } catch (IOException e) {
             e.printStackTrace();
         }
+
 
 
     }
