@@ -4,14 +4,14 @@ import java.util.List;
 import org.apache.tika.Tika;
 
 
-public interface AppNodeInterface {
+public interface Node {
 
-    Tika tika = new Tika();
-    List<BrokerInterface> brokers = null;
+
+    List<Broker> brokers = null;
 
     void init();//eixe int orisma
 
-    List<BrokerInterface> getBrokers();
+    List<Broker> getBrokers();
 
     void connect();
 
