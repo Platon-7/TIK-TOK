@@ -3,15 +3,16 @@ package myAPP;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.net.*;
+import java.net.ServerSocket;
+import java.net.Socket;
 
-public class ActionsForConsumer extends Thread {
+public class ActionsForPublishers extends Thread{
     ObjectInputStream in;
     ObjectOutputStream out;
     Socket client;
     BrokerNode broker;
 
-    public ActionsForConsumer(Socket connection,BrokerNode broker) {
+    public ActionsForPublishers(Socket connection,BrokerNode broker) {
         this.client=connection;
         this.broker=broker;
         //ο constructor αρχικοποιεί τα αντικείμενα-ροές για την επικοινωνία με τον αντίστοιχο πελάτη
@@ -29,12 +30,9 @@ public class ActionsForConsumer extends Thread {
     public void run() {
         //τα αντικείμενα in και out έχουν ήδη αρχικοποιηθεί
         //κατά την δημιουργία του αντικειμένου (στον constructor)
-
         try {
             Message key =(Message) in.readObject();
-
             System.out.println("RECEIVED KEY");
-            
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ClassNotFoundException e) {

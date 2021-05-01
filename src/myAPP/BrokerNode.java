@@ -13,6 +13,8 @@ public class BrokerNode implements Broker{
     Socket connection = null;
     private ObjectOutputStream output; // output stream to client
     private ObjectInputStream input; // input stream from client
+    ArrayList<ActionsForConsumer> consumers=new ArrayList<>();
+    ArrayList<ActionsForPublishers> publishers=new ArrayList<>();
 
     @Override
     public void calculateKeys() {
@@ -109,11 +111,24 @@ public class BrokerNode implements Broker{
             //και έχει μέγεθος ουράς 10
             providerSocket = new ServerSocket(4321);
             //Αναμονή για σύνδεση με πελάτη
-            System.out.println("Waiting for connection");
-            connection = providerSocket.accept();
-            System.out.println( "Connection received from: " +
-                    connection.getInetAddress().getHostName() );
-            output = new ObjectOutputStream(connection.getOutputStream());
+            int i=0;
+            while (true) {
+                System.out.println("Waiting for connection");
+                connection = providerSocket.accept();
+                System.out.println("Connection received from: " +
+                        connection.getInetAddress().getHostName());
+                i++;
+                if(i%2==1) {
+                    ActionsForPublishers pubThread = new ActionsForPublishers(connection,this);
+                    publishers.add(pubThread);
+                    pubThread.start();
+                }else{
+                    ActionsForConsumer consThread = new ActionsForConsumer(connection,this);
+                    consumers.add(consThread);
+                    consThread.start();
+                }
+            }
+           /* output = new ObjectOutputStream(connection.getOutputStream());
             output.flush();
             input = new ObjectInputStream(connection.getInputStream());
             try {
@@ -124,12 +139,11 @@ public class BrokerNode implements Broker{
                 e.printStackTrace();
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
-            }
+            }*/
 
         } catch (IOException ioException) {
             ioException.printStackTrace();
         }
-
     }
 
     @Override

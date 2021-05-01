@@ -29,7 +29,10 @@ public class AppNode implements Publisher,Consumer {
 
     int maxBufferSize = 512 * 1024; //512kb
     public AppNode() {
-
+        PublisherThread pub=new PublisherThread(this);
+        pub.start();
+        ConsumerThread cons=new ConsumerThread(this);
+        cons.start();
     }
 
     @Override
@@ -219,6 +222,7 @@ public class AppNode implements Publisher,Consumer {
                 int FILE_SIZE = published.get(i).getVideoFile().videoFileChunk.length;
                 int NUMBER_OF_CHUNKS = FILE_SIZE/CHUNK_SIZE +1;
                 int bytesRemaining=FILE_SIZE;
+                Message videoChunks;
                 for (int j=0;j<NUMBER_OF_CHUNKS;j++){
                     if (j == NUMBER_OF_CHUNKS-1)
                     {
@@ -235,7 +239,11 @@ public class AppNode implements Publisher,Consumer {
                     {
                         bytesRemaining -= CHUNK_SIZE;
                     }
-                    Message videoChunks = new Message(channelName.channelName, key, 1, temporary);
+                    if (j != NUMBER_OF_CHUNKS-1) {
+                        videoChunks = new Message(channelName.channelName, key, 1, temporary);
+                    }else {
+                        videoChunks = new Message(channelName.channelName, key, 0, temporary);
+                    }
                     try {
                         out.writeObject(videoChunks);
                         out.flush();
@@ -288,35 +296,5 @@ public class AppNode implements Publisher,Consumer {
 
     public static void main(String[] args) {
         AppNode app = new AppNode();
-        Message answer;
-        app.connect();
-        app.init();
-        Scanner in = new Scanner(System.in);
-        do {
-            System.out.println("Please enter video search: ");
-            String key = in.nextLine();
-            System.out.println(key);
-            Message request=new Message(app.channelName.channelName,key,0,null);
-            try {
-                app.out.writeObject(request);
-                app.out.flush();
-                System.out.println("SENT key");
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            try {
-                answer= (Message) app.in.readObject();
-                if(answer.getChunks()==0){
-                    app.push(answer.getKey(),null);
-                }
-                if(answer.getChunks()==1){
-                    app.playData(answer.getKey(), null);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-            }
-        }while(!in.nextLine().equals("end"));
     }
 }
