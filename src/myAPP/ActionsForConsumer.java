@@ -14,6 +14,7 @@ public class ActionsForConsumer extends Thread {
     public ActionsForConsumer(Socket connection,BrokerNode broker) {
         this.client=connection;
         this.broker=broker;
+        System.out.println(currentThread().getId());
         //ο constructor αρχικοποιεί τα αντικείμενα-ροές για την επικοινωνία με τον αντίστοιχο πελάτη
         try {
             out = new ObjectOutputStream(client.getOutputStream());
@@ -32,12 +33,11 @@ public class ActionsForConsumer extends Thread {
 
         try {
             Message key =(Message) in.readObject();
-
+            broker.pull(key.getKey());
             System.out.println("RECEIVED KEY");
+
             
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
+        } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
     }

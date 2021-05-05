@@ -51,39 +51,49 @@ public class BrokerNode implements Broker{
 
         Message answer=new Message(null,null,0,null);
         Message request=new Message("Server",key,0,null);
-        try {
-            output.writeObject(request);
-            output.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        int k=1;
-        do{
-            try {
-
-                answer= (Message) input.readObject();
-                System.out.println("read "+k++);
-                chunks.add(answer.getData());
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-            }
-        }while(answer.getChunks()==1);
-        request=new Message("Server",key,1,null);
-        try {
-            output.writeObject(request);
-            output.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        for (int i=0;i<chunks.size();i++){
-            request=new Message("Server",key,1, chunks.get(i));
-            try {
-                output.writeObject(request);
-                output.flush();
-            } catch (IOException e) {
-                e.printStackTrace();
+        for(int i=0;i<publishers.size();i++){
+            if (consumers.get(i).equals(Thread.currentThread())){
+                try {
+                    publishers.get(i).out.writeObject(request);
+                    publishers.get(i).out.flush();
+                    System.out.println("sent request");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                int k=1;
+                do{
+                    try {
+                        answer= (Message) consumers.get(i).in.readObject();
+                        System.out.println("read "+k++);
+                        chunks.add(answer.getData());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (ClassNotFoundException e) {
+                        e.printStackTrace();
+                    }
+                }while(answer.getChunks()==1);
+               /* request=new Message("Server",key,1,null);
+                try {
+                    consumers.get(i).out.writeObject(request);
+                    consumers.get(i).out.flush();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }*/
+                System.out.println("finished sent");
+                for (int j=0;j<chunks.size();j++){
+                    if(j==chunks.size()-1) {
+                        request = new Message("Server", key, 0, chunks.get(i));
+                    }else{
+                        request = new Message("Server", key, 1, chunks.get(i));
+                    }
+                    System.out.println("sent chunk");
+                    try {
+                        consumers.get(i).out.writeObject(request);
+                        consumers.get(i).out.flush();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
             }
         }
     }
@@ -111,6 +121,7 @@ public class BrokerNode implements Broker{
             //και έχει μέγεθος ουράς 10
             providerSocket = new ServerSocket(4321);
             //Αναμονή για σύνδεση με πελάτη
+
             int i=0;
             while (true) {
                 System.out.println("Waiting for connection");
@@ -128,18 +139,6 @@ public class BrokerNode implements Broker{
                     consThread.start();
                 }
             }
-           /* output = new ObjectOutputStream(connection.getOutputStream());
-            output.flush();
-            input = new ObjectInputStream(connection.getInputStream());
-            try {
-                Message key =(Message) input.readObject();
-                System.out.println("RECEIVED KEY");
-                pull(key.getKey());
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-            }*/
 
         } catch (IOException ioException) {
             ioException.printStackTrace();

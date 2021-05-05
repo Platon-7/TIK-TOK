@@ -3,7 +3,6 @@ package myAPP;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.net.ServerSocket;
 import java.net.Socket;
 
 public class ActionsForPublishers extends Thread{
@@ -33,9 +32,7 @@ public class ActionsForPublishers extends Thread{
         try {
             Message key =(Message) in.readObject();
             System.out.println("RECEIVED KEY");
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
+        } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
     }

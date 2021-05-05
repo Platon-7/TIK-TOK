@@ -25,19 +25,13 @@ public class ConsumerThread extends Thread {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            try {
+           /* try {
                 answer = (Message) app.in.readObject();
-                if(answer.getChunks()==0){
-                    app.push(answer.getKey(),null);
-                }
-                if(answer.getChunks()==1){
-                    app.playData(answer.getKey(), null);
-                }
             } catch (IOException e) {
                 e.printStackTrace();
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
-            }
+            }*/
         }while(!in.nextLine().equals("end"));
     }
 }

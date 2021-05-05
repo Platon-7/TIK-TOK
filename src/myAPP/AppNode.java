@@ -15,7 +15,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 import java.util.stream.Collectors;
 
 public class AppNode implements Publisher,Consumer {
@@ -47,32 +46,48 @@ public class AppNode implements Publisher,Consumer {
 
     @Override
     public void playData(String data, Value value) {
-
-        ByteBuffer after=null;
-        do{
+        int length=0;
+        System.out.println("entered playdata");
+        List<byte[]> chunks=new ArrayList<>();
+        do {
             try {
                 answer = (Message) in.readObject();
-                after.put(answer.getData());
+                System.out.println("got answer");
+                chunks.add(answer.getData());
+                length+=answer.getData().length;
             } catch (IOException e) {
                 e.printStackTrace();
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             }
-        }while(answer.getChunks()==1);
-        File mp4 = new File("prodVideo/attempt_4.mp4");
-        OutputStream os = null;
-        try {
-            os = new FileOutputStream(mp4);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
         }
-        try {
-            os.write(after.array());
-        } catch (IOException e) {
-            e.printStackTrace();
+            while (answer.getChunks() == 1) ;
+            length += chunks.get(chunks.size() - 1).length;
+            File mp4 = new File("prodVideo/attempt_4.mp4");
+            OutputStream os = null;
+            try {
+                os = new FileOutputStream(mp4);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            try {
+                ByteArrayOutputStream output = new ByteArrayOutputStream();
+                byte[] after = new byte[length];
+                System.out.println(length);
+                for (int j = 0; j < chunks.size(); j++) {
+                    if(j==0){
+                        System.arraycopy(chunks.get(j),0,after,0,chunks.get(j).length);
+                    }else{
+                        System.arraycopy(chunks.get(j),0,after,j*chunks.get(j-1).length,chunks.get(j).length);
+                    }
+                    System.out.println(after[0]);
+                }
+                byte[] out = output.toByteArray();
+                os.write(out);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
-
-    }
 
     @Override
     public void init() {
@@ -163,6 +178,7 @@ public class AppNode implements Publisher,Consumer {
 
             //Δημιουργία υποδοχής που θα συνδεθεί με τη θύρα 4321 στο διακομιστή
             //ο οποίος βρίσκεται στην διεύθυνση με IP 127.0.0.1
+
             requestSocket = new Socket("127.0.0.1", 4321);
 
             //Obtain Socket’s OutputStream and use it to initialize ObjectOutputStream
@@ -251,6 +267,7 @@ public class AppNode implements Publisher,Consumer {
                         e.printStackTrace();
                     }
                 }
+                System.out.println("finished sent");
             }
         }
     }
