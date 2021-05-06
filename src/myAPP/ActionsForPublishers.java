@@ -29,11 +29,11 @@ public class ActionsForPublishers extends Thread{
     public void run() {
         //τα αντικείμενα in και out έχουν ήδη αρχικοποιηθεί
         //κατά την δημιουργία του αντικειμένου (στον constructor)
-        try {
+        /*try {
             Message key =(Message) in.readObject();
             System.out.println("RECEIVED KEY");
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
-        }
+        }*/
     }
 }

@@ -1,7 +1,5 @@
 package myAPP;
 
-import opennlp.tools.parser.Cons;
-
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -9,12 +7,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BrokerNode implements Broker{
+    int PORT;
     ServerSocket providerSocket;
     Socket connection = null;
-    private ObjectOutputStream output; // output stream to client
-    private ObjectInputStream input; // input stream from client
     ArrayList<ActionsForConsumer> consumers=new ArrayList<>();
     ArrayList<ActionsForPublishers> publishers=new ArrayList<>();
+
+    public BrokerNode(String PORT) {
+        this.PORT=Integer.parseInt(PORT);
+    }
 
     @Override
     public void calculateKeys() {
@@ -24,7 +25,6 @@ public class BrokerNode implements Broker{
     @Override
     public Publisher acceptConnection(Publisher publisher)
     {
-
         return null;
     }
 
@@ -60,33 +60,22 @@ public class BrokerNode implements Broker{
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                int k=1;
                 do{
                     try {
                         answer= (Message) consumers.get(i).in.readObject();
-                        System.out.println("read "+k++);
                         chunks.add(answer.getData());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } catch (ClassNotFoundException e) {
+                    } catch (IOException | ClassNotFoundException e) {
                         e.printStackTrace();
                     }
                 }while(answer.getChunks()==1);
-               /* request=new Message("Server",key,1,null);
-                try {
-                    consumers.get(i).out.writeObject(request);
-                    consumers.get(i).out.flush();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }*/
-                System.out.println("finished sent");
+
+                System.out.println("finished read");
                 for (int j=0;j<chunks.size();j++){
                     if(j==chunks.size()-1) {
-                        request = new Message("Server", key, 0, chunks.get(i));
+                        request = new Message("Server", answer.getKey(), 0, chunks.get(j));
                     }else{
-                        request = new Message("Server", key, 1, chunks.get(i));
+                        request = new Message("Server", answer.getKey(), 1, chunks.get(j));
                     }
-                    System.out.println("sent chunk");
                     try {
                         consumers.get(i).out.writeObject(request);
                         consumers.get(i).out.flush();
@@ -121,7 +110,6 @@ public class BrokerNode implements Broker{
             //και έχει μέγεθος ουράς 10
             providerSocket = new ServerSocket(4321);
             //Αναμονή για σύνδεση με πελάτη
-
             int i=0;
             while (true) {
                 System.out.println("Waiting for connection");
@@ -139,7 +127,6 @@ public class BrokerNode implements Broker{
                     consThread.start();
                 }
             }
-
         } catch (IOException ioException) {
             ioException.printStackTrace();
         }
@@ -155,7 +142,9 @@ public class BrokerNode implements Broker{
 
     }
     public static void main(String[] args){
-        BrokerNode broker=new BrokerNode();
+
+        BrokerNode broker=new BrokerNode(args[0]);
+
         broker.connect();
     }
 }

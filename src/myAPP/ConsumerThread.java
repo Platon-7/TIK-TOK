@@ -19,10 +19,15 @@ public class ConsumerThread extends Thread {
             System.out.println(key);
             Message request=new Message(app.channelName.channelName,key,0,null);
             try {
+                app.sem.release();
+                app.sem.acquire();
                 app.out.writeObject(request);
                 app.out.flush();
                 System.out.println("SENT key");
+                app.sem.release();
             } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
                 e.printStackTrace();
             }
            /* try {

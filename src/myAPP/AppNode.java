@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 
 public class AppNode implements Publisher,Consumer {
@@ -25,6 +26,7 @@ public class AppNode implements Publisher,Consumer {
     ChannelName channelName = new ChannelName("tiktoker");
     ArrayList<Value> published = new ArrayList<>();
     Message answer;
+    Semaphore sem=new Semaphore(1,true);
 
     int maxBufferSize = 512 * 1024; //512kb
     public AppNode() {
@@ -51,19 +53,19 @@ public class AppNode implements Publisher,Consumer {
         List<byte[]> chunks=new ArrayList<>();
         do {
             try {
+                sem.acquire();
                 answer = (Message) in.readObject();
-                System.out.println("got answer");
+                sem.release();
                 chunks.add(answer.getData());
                 length+=answer.getData().length;
-            } catch (IOException e) {
+            } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
-            } catch (ClassNotFoundException e) {
+            } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-        }
-            while (answer.getChunks() == 1) ;
+        } while (answer.getChunks() == 1) ;
             length += chunks.get(chunks.size() - 1).length;
-            File mp4 = new File("prodVideo/attempt_4.mp4");
+            File mp4 = new File("prodVideo/"+answer.getKey()+".mp4");
             OutputStream os = null;
             try {
                 os = new FileOutputStream(mp4);
@@ -71,7 +73,6 @@ public class AppNode implements Publisher,Consumer {
                 e.printStackTrace();
             }
             try {
-                ByteArrayOutputStream output = new ByteArrayOutputStream();
                 byte[] after = new byte[length];
                 System.out.println(length);
                 for (int j = 0; j < chunks.size(); j++) {
@@ -80,10 +81,8 @@ public class AppNode implements Publisher,Consumer {
                     }else{
                         System.arraycopy(chunks.get(j),0,after,j*chunks.get(j-1).length,chunks.get(j).length);
                     }
-                    System.out.println(after[0]);
                 }
-                byte[] out = output.toByteArray();
-                os.write(out);
+                os.write(after);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -106,7 +105,6 @@ public class AppNode implements Publisher,Consumer {
                     ParseContext pcontext = new ParseContext();
                     MP4Parser MP4Parser = new MP4Parser();
                     MP4Parser.parse(inputstream, handler, metadata, pcontext);
-
                 }
                 if (filenames.get(i).contains(".txt")) {
 
@@ -154,10 +152,7 @@ public class AppNode implements Publisher,Consumer {
                             metadata.get("tiff:ImageLength"), mylist, null);
                     Value value = new Value(video);
                     published.add(value);
-
                 }
-
-
             }
         } catch (TikaException | IOException | SAXException e) {
             e.printStackTrace();
@@ -230,9 +225,8 @@ public class AppNode implements Publisher,Consumer {
         generateChunks(key);
         for (int i = 0; i < published.size(); i++) {
             if (published.get(i).getVideoFile().associatedHashtags.contains(key) || channelName.channelName.equals(key)) {
-
                 int CHUNK_SIZE = maxBufferSize;
-                byte[] temporary = null;
+                byte[] temporary;
                 int bytesRead = 0;
                 ByteBuffer before = ByteBuffer.wrap(published.get(i).getVideoFile().videoFileChunk);
                 int FILE_SIZE = published.get(i).getVideoFile().videoFileChunk.length;
@@ -256,14 +250,18 @@ public class AppNode implements Publisher,Consumer {
                         bytesRemaining -= CHUNK_SIZE;
                     }
                     if (j != NUMBER_OF_CHUNKS-1) {
-                        videoChunks = new Message(channelName.channelName, key, 1, temporary);
+                        videoChunks = new Message(channelName.channelName,published.get(i).getVideoFile().videoName, 1, temporary);
                     }else {
-                        videoChunks = new Message(channelName.channelName, key, 0, temporary);
+                        videoChunks = new Message(channelName.channelName,published.get(i).getVideoFile().videoName, 0, temporary);
                     }
                     try {
+                        sem.acquire();
                         out.writeObject(videoChunks);
                         out.flush();
+                        sem.release();
                     } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
                 }
@@ -312,6 +310,6 @@ public class AppNode implements Publisher,Consumer {
     }
 
     public static void main(String[] args) {
-        AppNode app = new AppNode();
+        new AppNode();
     }
 }

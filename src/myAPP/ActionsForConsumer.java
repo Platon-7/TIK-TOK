@@ -33,6 +33,7 @@ public class ActionsForConsumer extends Thread {
 
         try {
             Message key =(Message) in.readObject();
+            System.out.println("RECEIVED KEY" + key.getKey());
             broker.pull(key.getKey());
             System.out.println("RECEIVED KEY");
 
