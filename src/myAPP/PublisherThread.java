@@ -14,9 +14,20 @@ public class PublisherThread extends Thread {
 
     public void run() {
         try {
-            System.out.println("inside");
+            Message key;
+            for(int i=0;i<app.channelName.hashtagsPublished.size();i++){
+                key=new Message(app.channelName.channelName,app.channelName.hashtagsPublished.get(i),1,null);
+                if(i==(app.channelName.hashtagsPublished.size()-1)){
+                    key.setChunks(0);
+                }
+                app.sem.acquire();
+                app.out.writeObject(key);
+                app.out.flush();
+                System.out.println("SENT hashtag");
+                app.sem.release();
+            }
             app.sem.acquire();
-            Message key =(Message) app.in.readObject();
+            key =(Message) app.in.readObject();
             app.sem.release();
             System.out.println("RECEIVED KEY" + key.getKey());
             app.push(key.getKey(),null);

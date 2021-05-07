@@ -157,7 +157,9 @@ public class AppNode implements Publisher,Consumer {
         } catch (TikaException | IOException | SAXException e) {
             e.printStackTrace();
         }
-        generateChunks("tiktoker");
+
+
+
 
     }
 
@@ -170,7 +172,6 @@ public class AppNode implements Publisher,Consumer {
     @Override
     public void connect() {
         try {
-
             //Δημιουργία υποδοχής που θα συνδεθεί με τη θύρα 4321 στο διακομιστή
             //ο οποίος βρίσκεται στην διεύθυνση με IP 127.0.0.1
 

@@ -3,10 +3,17 @@ package myAPP;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 public class BrokerNode implements Broker{
+    ArrayList<String> topics = new ArrayList<>();
+    Socket requestSocket = null;
+    ObjectOutputStream out;
+    //ροή για να παίρνεις δεδομένα από τον διακομιστή
+    ObjectInputStream in;
     int PORT;
     ServerSocket providerSocket;
     Socket connection = null;
@@ -15,6 +22,7 @@ public class BrokerNode implements Broker{
 
     public BrokerNode(String PORT) {
         this.PORT=Integer.parseInt(PORT);
+        init();
     }
 
     @Override
@@ -94,8 +102,48 @@ public class BrokerNode implements Broker{
 
     @Override
     public void init() {
+        Scanner input = new Scanner(System.in);
+        System.out.println("Connect to next server? y/n :");
+        String key = input.nextLine();
+        System.out.println(key);
+        if (key.equals("y")) {
+        try {
+            requestSocket = new Socket("127.0.0.1", 4322);
+            //Obtain Socket’s OutputStream and use it to initialize ObjectOutputStream
+            out = new ObjectOutputStream(requestSocket.getOutputStream());
 
+            //Obtain Socket’s InputStream and use it to initialize ObjectInputStream
+            in = new ObjectInputStream(requestSocket.getInputStream());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+     }
+        // edw tha mpoyn ola ta hashtags
+        int counter1 = 0, counter2 = 0, counter3 = 0, counter4 =0;
+    for (int i = 0; i < topics.size(); i++) {
+        String tempHash = null;
+        try {
+            tempHash = Broker.hashFunction(topics.get(i));
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+        if (tempHash.compareTo(hashBrokers.get(0)) == -1) {
+            counter1++;
+            //Distribution to element1
+        } else if (tempHash.compareTo(hashBrokers.get(1)) == -1) {
+            counter2++;
+            //Distribution to element2
+        } else if (tempHash.compareTo(hashBrokers.get(2)) == -1) {
+            counter3++;
+            //Distribution to element3
+        } else {
+            System.out.println("Cant go to broker: " + topics.get(i));
+            counter4++;
+        }
     }
+    System.out.println(counter1 + "  " + counter2 + "  " + counter3 + "  " + counter4);
+    }
+
 
     @Override
     public List<Broker> getBrokers() {
@@ -116,6 +164,7 @@ public class BrokerNode implements Broker{
                 connection = providerSocket.accept();
                 System.out.println("Connection received from: " +
                         connection.getInetAddress().getHostName());
+
                 i++;
                 if(i%2==1) {
                     ActionsForPublishers pubThread = new ActionsForPublishers(connection,this);

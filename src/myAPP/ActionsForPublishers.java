@@ -27,13 +27,15 @@ public class ActionsForPublishers extends Thread{
     }
 
     public void run() {
-        //τα αντικείμενα in και out έχουν ήδη αρχικοποιηθεί
-        //κατά την δημιουργία του αντικειμένου (στον constructor)
-        /*try {
-            Message key =(Message) in.readObject();
-            System.out.println("RECEIVED KEY");
+        Message answer;
+        try {
+            do {
+            answer = (Message) in.readObject();
+            broker.topics.add(answer.getKey());
+        }while(answer.getChunks()==1);
+            broker.topics.add(answer.getChannelName());
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
-        }*/
+        }
     }
 }

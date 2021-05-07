@@ -24,6 +24,10 @@ public class Message implements Serializable {
         return chunks;
     }
 
+    public void setChunks(int chunks) {
+        this.chunks = chunks;
+    }
+
     public byte[] getData() {
         return data;
     }

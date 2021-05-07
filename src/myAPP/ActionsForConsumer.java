@@ -32,10 +32,11 @@ public class ActionsForConsumer extends Thread {
         //κατά την δημιουργία του αντικειμένου (στον constructor)
 
         try {
+
             Message key =(Message) in.readObject();
             System.out.println("RECEIVED KEY" + key.getKey());
             broker.pull(key.getKey());
-            System.out.println("RECEIVED KEY");
+
 
             
         } catch (IOException | ClassNotFoundException e) {
