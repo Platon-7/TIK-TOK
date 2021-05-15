@@ -4,38 +4,68 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.security.NoSuchAlgorithmException;
+
 
 public class ActionsForPublishers extends Thread{
     ObjectInputStream in;
     ObjectOutputStream out;
     Socket client;
     BrokerNode broker;
+    String hashCode;
 
     public ActionsForPublishers(Socket connection,BrokerNode broker) {
         this.client=connection;
         this.broker=broker;
-        //ο constructor αρχικοποιεί τα αντικείμενα-ροές για την επικοινωνία με τον αντίστοιχο πελάτη
+
         try {
             out = new ObjectOutputStream(client.getOutputStream());
-            //out: για γράψιμο στον πελάτη
-
             in = new ObjectInputStream(client.getInputStream());
-            //in: για διάβασμα από τον πελάτη
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    public String getHashCode() {
+        return hashCode;
+    }
     public void run() {
-        Message answer;
-        try {
-            do {
-            answer = (Message) in.readObject();
-            broker.topics.add(answer.getKey());
-        }while(answer.getChunks()==1);
-            broker.topics.add(answer.getChannelName());
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
+        Message msg;
+        if (broker.brokerFlag) {
+            msg = new Message("broker", null, null, null);
+            try {
+                out.writeObject(msg);
+                out.flush();
+                msg= (Message) in.readObject();
+                hashCode=Broker.hashFunction(msg.channelName);
+            } catch (IOException | ClassNotFoundException | NoSuchAlgorithmException e) {
+                e.printStackTrace();
+            }
+
+        } else {
+            msg = new Message("Server", null, null, null);
+            try {
+                out.writeObject(msg);
+                out.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            try {
+                do {
+                    msg = (Message) in.readObject();
+                    if(Integer.parseInt(msg.getFlag())==-1) break;
+                    broker.newHashtags.add(msg.getKey());
+                } while (Integer.parseInt(msg.getFlag()) > 0);
+                broker.newHashtags.add(msg.getChannelName());
+                hashCode=Broker.hashFunction(msg.channelName);
+                for (int i = 0; i < broker.newHashtags.size(); i++) {
+                    System.out.println("received " + broker.newHashtags.get(i));
+                }
+                broker.init();
+            } catch (IOException | ClassNotFoundException | NoSuchAlgorithmException e) {
+                e.printStackTrace();
+            }
+
         }
     }
 }

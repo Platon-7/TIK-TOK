@@ -1,8 +1,10 @@
 package myAPP;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 
-public class VideoFile {
+public class VideoFile implements Serializable {
+    private static final long serialVersionUID = -2723363051271966962L;
     String videoName;
     String channelName;
     String dateCreated;
@@ -15,6 +17,13 @@ public class VideoFile {
 
     public void setVideoFileChunk(byte[] videoFileChunk) {
         this.videoFileChunk = videoFileChunk;
+    }
+
+    public byte[] getVideoFileChunk() {
+        return videoFileChunk;
+    }
+
+    public VideoFile() {
     }
 
     public ArrayList<String> getAssociatedHashtags() {

@@ -4,31 +4,31 @@ import java.io.Serializable;
 
 public class Message implements Serializable {
     private static final long serialVersionUID = -2723363051271966964L;
-    byte[] data;
+    Value data;
     String key;
     String channelName;
-    int chunks;
+    String flag;
 
-    public Message(String channelName,String key,int chunks,byte[] data) {
+    public Message(String channelName, String key, String flag, Value data) {
         this.channelName=channelName;
         this.key=key;
         this.data=data;
-        this.chunks=chunks;
+        this.flag=flag;
     }
-
+    public Message(){};
     public String getChannelName() {
         return channelName;
     }
 
-    public int getChunks() {
-        return chunks;
+    public String getFlag() {
+        return flag;
     }
 
-    public void setChunks(int chunks) {
-        this.chunks = chunks;
+    public void setFlag(String flag) {
+        this.flag = flag;
     }
 
-    public byte[] getData() {
+    public Value getData() {
         return data;
     }
 

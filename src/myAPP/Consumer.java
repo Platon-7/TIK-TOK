@@ -1,5 +1,6 @@
 package myAPP;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public interface Consumer extends Node {
@@ -21,5 +22,5 @@ public interface Consumer extends Node {
     void disconnect();
 
     @Override
-    void updateNodes();
+    ArrayList<String> updateNodes();
 }

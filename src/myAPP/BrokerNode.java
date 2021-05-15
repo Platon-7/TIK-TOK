@@ -1,30 +1,49 @@
 package myAPP;
 
 import java.io.*;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.net.*;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 
 public class BrokerNode implements Broker{
+    HashMap<String, Long> hashBrokers = new HashMap<>();
+    List brokersList=new ArrayList();
     ArrayList<String> topics = new ArrayList<>();
+    ArrayList<String> newHashtags = new ArrayList<>();
+    ArrayList<String> info=new ArrayList<>();
     Socket requestSocket = null;
-    ObjectOutputStream out;
-    //ροή για να παίρνεις δεδομένα από τον διακομιστή
-    ObjectInputStream in;
+    HashMap<String,List<String>> brokerInfo=new HashMap<>();
     int PORT;
     ServerSocket providerSocket;
     Socket connection = null;
     ArrayList<ActionsForConsumer> consumers=new ArrayList<>();
     ArrayList<ActionsForPublishers> publishers=new ArrayList<>();
+    ArrayList<ActionsForBrokers> brokers=new ArrayList<>();
+    int brokerInt;
+    boolean brokerFlag=false;
+    String publisherIp="";
+    String publisherPort="";
+    HashMap<String,Integer> listOfpubs=new HashMap<>();
 
     public BrokerNode(String PORT) {
         this.PORT=Integer.parseInt(PORT);
-        init();
+
+        connect();
     }
 
+    public  void ConnectToPublisher(String ip,String port){
+        System.out.println("Connected to "+ip+" in port "+port);
+        try {
+            requestSocket=new Socket(ip,Integer.parseInt(port));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        ActionsForPublishers pubThread = new ActionsForPublishers(requestSocket, this);
+        pubThread.start();
+        publishers.add(pubThread);
+        publisherIp=ip;
+        publisherPort=port;
+    }
     @Override
     public void calculateKeys() {
 
@@ -54,41 +73,46 @@ public class BrokerNode implements Broker{
 
     @Override
     public void pull(String key) {
-        System.out.println("pull with" +key);
-        List<byte[]> chunks=new ArrayList<>();
+        Iterator<ActionsForConsumer> itr = consumers.iterator();
+        System.out.println("pull with " +key);
+        Message msg=new Message("Server",key,null,null);
+        for(int i=0;i<consumers.size();i++){
+            if (consumers.get(i).equals(Thread.currentThread())) {
+                for (int j = 0; j < publishers.size(); j++) {
+                    if (!consumers.get(i).getHashCode().equals(publishers.get(j).getHashCode())) {
+                        try {
+                            publishers.get(j).out.writeObject(msg);
+                            publishers.get(j).out.flush();
+                            System.out.println("sent request");
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        try {
+                            msg = (Message) publishers.get(j).in.readObject();
+                            consumers.get(i).out.writeObject(msg);
+                            consumers.get(i).out.flush();
 
-        Message answer=new Message(null,null,0,null);
-        Message request=new Message("Server",key,0,null);
-        for(int i=0;i<publishers.size();i++){
-            if (consumers.get(i).equals(Thread.currentThread())){
-                try {
-                    publishers.get(i).out.writeObject(request);
-                    publishers.get(i).out.flush();
-                    System.out.println("sent request");
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                do{
-                    try {
-                        answer= (Message) consumers.get(i).in.readObject();
-                        chunks.add(answer.getData());
-                    } catch (IOException | ClassNotFoundException e) {
-                        e.printStackTrace();
-                    }
-                }while(answer.getChunks()==1);
 
-                System.out.println("finished read");
-                for (int j=0;j<chunks.size();j++){
-                    if(j==chunks.size()-1) {
-                        request = new Message("Server", answer.getKey(), 0, chunks.get(j));
-                    }else{
-                        request = new Message("Server", answer.getKey(), 1, chunks.get(j));
-                    }
-                    try {
-                        consumers.get(i).out.writeObject(request);
-                        consumers.get(i).out.flush();
-                    } catch (IOException e) {
-                        e.printStackTrace();
+                        } catch (IOException | ClassNotFoundException e) {
+                            e.printStackTrace();
+                        }
+                        if (!msg.getFlag().equals("No results")) {
+                            int counter=Integer.parseInt(msg.getFlag());
+                            do {
+                                do {
+                                    try {
+                                        msg = (Message) publishers.get(j).in.readObject();
+                                        consumers.get(i).out.writeObject(msg);
+                                        consumers.get(i).out.flush();
+                                        System.out.println("sent answer");
+                                    } catch (IOException | ClassNotFoundException e) {
+                                        e.printStackTrace();
+                                    }
+                                }while(Integer.parseInt(msg.getFlag())>0);
+                                counter--;
+                            } while (counter > 0);
+                            System.out.println("PULLED AND SENT VIDEO");
+                        }
                     }
                 }
             }
@@ -102,82 +126,188 @@ public class BrokerNode implements Broker{
 
     @Override
     public void init() {
-        Scanner input = new Scanner(System.in);
-        System.out.println("Connect to next server? y/n :");
-        String key = input.nextLine();
-        System.out.println(key);
-        if (key.equals("y")) {
-        try {
-            requestSocket = new Socket("127.0.0.1", 4322);
-            //Obtain Socket’s OutputStream and use it to initialize ObjectOutputStream
-            out = new ObjectOutputStream(requestSocket.getOutputStream());
-
-            //Obtain Socket’s InputStream and use it to initialize ObjectInputStream
-            in = new ObjectInputStream(requestSocket.getInputStream());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-     }
         // edw tha mpoyn ola ta hashtags
-        int counter1 = 0, counter2 = 0, counter3 = 0, counter4 =0;
-    for (int i = 0; i < topics.size(); i++) {
-        String tempHash = null;
+        Message sendHash;
+
+        List<Integer> taken = new ArrayList<>();
+        List<Integer> pos =new ArrayList<>();
+        long value;
+        Collections.sort(brokersList);
+        for (int j = 0; j < brokersList.size(); j++) {
+            for (int i = 0; i < newHashtags.size(); i++) {
+                System.out.println("In brokerNode " + newHashtags.get(i));
+                String tempHash = null;
+                if (!taken.contains(i)) {
+                    try {
+                        tempHash = Broker.hashFunction(newHashtags.get(i));
+                    } catch (NoSuchAlgorithmException e) {
+                        e.printStackTrace();
+                    }
+                    value = Long.valueOf(tempHash, 16);
+                    if ((long) brokersList.get(j) > value) {
+                        if (brokersList.get(j) == hashBrokers.get("Server")) {
+                            topics.add(newHashtags.get(i));
+                        } else {
+                            sendHash = new Message("Server", newHashtags.get(i), "hash", null);
+                            for (int h = 0; h < hashBrokers.size() - 1; h++) {
+                                if (brokersList.get(j) == hashBrokers.get("Broker" + h))
+                                    try {
+                                        pos.add(h);
+                                        brokers.get(h).out.writeObject(sendHash);
+                                        brokers.get(h).out.flush();
+                                        if(!brokerInfo.get("Broker" + h).contains(newHashtags.get(i))) {
+                                            brokerInfo.get("Broker" + h).add(newHashtags.get(i));
+                                        }
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                            }
+                        }
+                        taken.add(i);
+                    } else {
+                        if (j == hashBrokers.size() - 1) {
+
+                            topics.add(newHashtags.get(i));
+                        }
+                    }
+                }
+            }
+        }
+        info.addAll(topics);
+        brokerInfo.put("Server",info);
         try {
-            tempHash = Broker.hashFunction(topics.get(i));
-        } catch (NoSuchAlgorithmException e) {
+            brokerInfo.get("Server").add(0,InetAddress.getLocalHost().getHostAddress());
+            brokerInfo.get("Server").add(1,String.valueOf(PORT));
+        } catch (UnknownHostException e) {
             e.printStackTrace();
         }
-        if (tempHash.compareTo(hashBrokers.get(0)) == -1) {
-            counter1++;
-            //Distribution to element1
-        } else if (tempHash.compareTo(hashBrokers.get(1)) == -1) {
-            counter2++;
-            //Distribution to element2
-        } else if (tempHash.compareTo(hashBrokers.get(2)) == -1) {
-            counter3++;
-            //Distribution to element3
-        } else {
-            System.out.println("Cant go to broker: " + topics.get(i));
-            counter4++;
+
+        sendHash = new Message(publisherIp, publisherPort, "Publisher", null);
+        for(int i=0;i<brokersList.size()-1;i++){
+                if (pos.contains(i)) {
+                    try {
+                        brokers.get(i).out.writeObject(sendHash);
+                        brokers.get(i).out.flush();
+                        System.out.println("sent Publisher INFO to brokers");
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
         }
-    }
-    System.out.println(counter1 + "  " + counter2 + "  " + counter3 + "  " + counter4);
-    }
+        for(int i=0;i<brokerInfo.size()-1;i++) {
+            int counter=brokerInfo.get("Broker" + i).size();
+            for (int j = 0; j < brokerInfo.get("Broker" + i).size(); j++) {
+                for (int k = 0; k < brokerInfo.size() -1;k++) {
+                    if(k!=i) {
+                        try {
+                            sendHash = new Message("Broker" + i, brokerInfo.get("Broker" + i).get(j), String.valueOf(counter), null);
+                            brokers.get(k).out.writeObject(sendHash);
+                            brokers.get(k).out.flush();
 
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+                counter--;
+            }
+            counter=brokerInfo.get("Server").size();
+            for (int k = 0; k < brokerInfo.get("Server").size(); k++) {
 
-    @Override
+                sendHash = new Message("Server", brokerInfo.get("Server").get(k), String.valueOf(counter), null);
+                try {
+                    brokers.get(i).out.writeObject(sendHash);
+                    brokers.get(i).out.flush();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                counter--;
+            }
+        }
+
+        for(int i=0;i<topics.size();i++){
+            System.out.println("TOPICS: " + topics.get(i));
+        }
+        newHashtags.removeAll(newHashtags);
+    }
+        @Override
     public List<Broker> getBrokers() {
         return null;
     }
 
     @Override
     public void connect() {
+        int temp = 0;
+        Scanner input = new Scanner(System.in);
+        do {
+            System.out.println("Is this the main server? yes/no:");
+            String an = input.nextLine();
+            if (an.equals("no")) {
+                brokerInt = -1;
+                brokerFlag = true;
+                break;
+            } else if (an.equals("yes")){
+                System.out.println("How many other servers will connect? ");
+                brokerInt = input.nextInt();
 
+                try {
+                    hashBrokers.put("Server", Long.valueOf(Broker.hashFunction("127.0.0.1" + PORT), 16));
+                    brokersList.add(hashBrokers.get("Server"));
+                } catch (NoSuchAlgorithmException e) {
+                    e.printStackTrace();
+                }
+                break;
+            }
+        }while(true);
+
+        Message answer;
         try {
-            //Δημιουργία serverSocket που ακούει στην πόρτα 4321
-            //και έχει μέγεθος ουράς 10
-            providerSocket = new ServerSocket(4321);
-            //Αναμονή για σύνδεση με πελάτη
-            int i=0;
+            providerSocket = new ServerSocket(PORT);
             while (true) {
-                System.out.println("Waiting for connection");
-                connection = providerSocket.accept();
-                System.out.println("Connection received from: " +
-                        connection.getInetAddress().getHostName());
+                if (brokerFlag&&temp==0) {
+                    try {
+                        requestSocket = new Socket("127.0.0.1", 4321);
+                        ActionsForBrokers broker = new ActionsForBrokers(requestSocket, this);
+                        broker.start();
+                        temp++;
 
-                i++;
-                if(i%2==1) {
-                    ActionsForPublishers pubThread = new ActionsForPublishers(connection,this);
-                    publishers.add(pubThread);
-                    pubThread.start();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }else{
-                    ActionsForConsumer consThread = new ActionsForConsumer(connection,this);
-                    consumers.add(consThread);
-                    consThread.start();
+                    System.out.println("Waiting for connection");
+                    connection = providerSocket.accept();
+                    System.out.println("Connection received from: " + connection.getInetAddress().getHostAddress());
+                    if(temp>=brokerInt) {
+                        ActionsForConsumer consThread = new ActionsForConsumer(connection, this);
+                        consumers.add(consThread);
+                        consThread.start();
+                    }else {
+                        List<String> info=new ArrayList<>();
+                        ActionsForBrokers broker = new ActionsForBrokers(connection,this);
+                        brokers.add(broker);
+                        answer = (Message) broker.in.readObject();
+                        hashBrokers.put("Broker"+temp,Long.valueOf(Broker.hashFunction(answer.channelName+answer.getKey()),16));
+                        info.add(answer.channelName);
+                        info.add(answer.getKey());
+                        listOfpubs.put(answer.channelName, Integer.valueOf(answer.getKey()));
+                        brokersList.add(hashBrokers.get("Broker"+temp));
+                        brokerInfo.put("Broker"+temp,info);
+                        System.out.println("Broker answer"+answer.getKey());
+                        temp++;
+                    }
                 }
             }
-        } catch (IOException ioException) {
+        } catch (IOException | ClassNotFoundException ioException) {
             ioException.printStackTrace();
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }finally {
+            try {
+                providerSocket.close();
+            } catch (IOException ioException) {
+                ioException.printStackTrace();
+            }
         }
     }
 
@@ -185,15 +315,108 @@ public class BrokerNode implements Broker{
     public void disconnect() {
 
     }
+    public void updateHashtags(){
+        Message sendHash;
+        List<String> newTopics= new ArrayList<>();
+        List<Integer> taken = new ArrayList<>();
+        List<Integer> pos =new ArrayList<>();
+        long value;
+        for (int j = 0; j < brokersList.size(); j++) {
+            for (int i = 0; i < newHashtags.size(); i++) {
+                System.out.println("In brokerNode " + newHashtags.get(i));
+                String tempHash = null;
+                if (!taken.contains(i)) {
+                    try {
+                        tempHash = Broker.hashFunction(newHashtags.get(i));
+                    } catch (NoSuchAlgorithmException e) {
+                        e.printStackTrace();
+                    }
+                    value = Long.valueOf(tempHash, 16);
+                    if ((long) brokersList.get(j) > value) {
+                        if (brokersList.get(j) == hashBrokers.get("Server")) {
+                            newTopics.add(newHashtags.get(i));
+                        } else {
+                            sendHash = new Message("Server", newHashtags.get(i), "hash", null);
+                            for (int h = 0; h < hashBrokers.size() - 1; h++) {
+                                if (brokersList.get(j) == hashBrokers.get("Broker" + h))
+                                    try {
+                                        pos.add(h);
+                                        brokers.get(h).out.writeObject(sendHash);
+                                        brokers.get(h).out.flush();
+                                        if(!brokerInfo.get("Broker" + h).contains(newHashtags.get(i))) {
+                                            brokerInfo.get("Broker" + h).add(newHashtags.get(i));
+                                        }
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                            }
+                        }
+                        taken.add(i);
+                    } else {
+                        if (j == hashBrokers.size() - 1) {
 
-    @Override
-    public void updateNodes() {
+                            newTopics.add(newHashtags.get(i));
+                        }
+                    }
+                }
+            }
+        }
+        info.addAll(newTopics);
+        brokerInfo.put("Server",info);
+        sendHash = new Message(publisherIp, publisherPort, "Publisher", null);
+        for(int i=0;i<brokersList.size()-1;i++){
+            if (pos.contains(i)) {
+                try {
+                    brokers.get(i).out.writeObject(sendHash);
+                    brokers.get(i).out.flush();
+                    System.out.println("sent Publisher INFO to brokers");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        for(int i=0;i<brokerInfo.size()-1;i++) {
+            int counter=brokerInfo.get("Broker" + i).size();
+            for (int j = 0; j < brokerInfo.get("Broker" + i).size(); j++) {
+                for (int k = 0; k < brokerInfo.size() -1;k++) {
+                    if(k!=i) {
+                        try {
+                            sendHash = new Message("Broker" + i, brokerInfo.get("Broker" + i).get(j), String.valueOf(counter), null);
+                            brokers.get(k).out.writeObject(sendHash);
+                            brokers.get(k).out.flush();
 
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+                counter--;
+            }
+            counter=brokerInfo.get("Server").size();
+            for (int k = 0; k < brokerInfo.get("Server").size(); k++) {
+
+                sendHash = new Message("Server", brokerInfo.get("Server").get(k), String.valueOf(counter), null);
+                try {
+                    brokers.get(i).out.writeObject(sendHash);
+                    brokers.get(i).out.flush();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                counter--;
+            }
+        }
+
+        for(int i=0;i<topics.size();i++){
+            System.out.println("TOPICS: " + topics.get(i));
+        }
+        newHashtags.removeAll(newHashtags);
     }
-    public static void main(String[] args){
+    @Override
+    public ArrayList<String> updateNodes() {
+        return null;
+    }
+    public static void main(String[] args)  {
+        new BrokerNode(args[0]);
 
-        BrokerNode broker=new BrokerNode(args[0]);
-
-        broker.connect();
     }
 }

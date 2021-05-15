@@ -1,42 +1,54 @@
 package myAPP;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
 
 public class PublisherThread extends Thread {
     AppNode app;
-    Socket requestSocket = null;
-    public PublisherThread(AppNode app){
+    Socket client;
+    ObjectInputStream in;
+    ObjectOutputStream out;
+    public PublisherThread(AppNode app,  Socket client){
         this.app=app;
-        app.init();
-        app.connect();
+        this.client=client;
+        try {
+            out = new ObjectOutputStream(client.getOutputStream());
+            in = new ObjectInputStream(client.getInputStream());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void run() {
         try {
-            Message key;
-            for(int i=0;i<app.channelName.hashtagsPublished.size();i++){
-                key=new Message(app.channelName.channelName,app.channelName.hashtagsPublished.get(i),1,null);
-                if(i==(app.channelName.hashtagsPublished.size()-1)){
-                    key.setChunks(0);
+            Message msg;
+            msg = (Message) in.readObject();
+            if (msg.channelName.equals("Server")) {
+                int counter = app.channelName.hashtagsPublished.size();
+                for (int i = 0; i < app.channelName.hashtagsPublished.size(); i++) {
+                    if (counter == 0) {
+                        msg = new Message(app.channelName.channelName, null, "-1", null);
+                        out.writeObject(msg);
+                        out.flush();
+                    }
+                    counter--;
+                    msg = new Message(app.channelName.channelName, app.channelName.hashtagsPublished.get(i), String.valueOf(counter), null);
+                    out.writeObject(msg);
+                    out.flush();
                 }
-                app.sem.acquire();
-                app.out.writeObject(key);
-                app.out.flush();
-                System.out.println("SENT hashtag");
-                app.sem.release();
+            } else {
+                msg = new Message(app.channelName.channelName, null, null, null);
+                out.writeObject(msg);
+                out.flush();
             }
-            app.sem.acquire();
-            key =(Message) app.in.readObject();
-            app.sem.release();
-            System.out.println("RECEIVED KEY" + key.getKey());
-            app.push(key.getKey(),null);
-            app.playData(null,null);
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+            while (true) {
+                msg = (Message) in.readObject();
+                System.out.println("RECEIVED KEY" + msg.getKey());
+                app.push(msg.getKey(), null);
+            }
+        } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
     }

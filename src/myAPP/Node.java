@@ -1,7 +1,7 @@
 package myAPP;
 
+import java.util.ArrayList;
 import java.util.List;
-import org.apache.tika.Tika;
 
 
 public interface Node {
@@ -17,5 +17,5 @@ public interface Node {
 
     void disconnect();
 
-    void updateNodes();
+    ArrayList<String> updateNodes();
 }
