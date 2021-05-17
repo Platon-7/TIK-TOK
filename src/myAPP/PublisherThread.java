@@ -45,11 +45,18 @@ public class PublisherThread extends Thread {
             }
             while (true) {
                 msg = (Message) in.readObject();
-                System.out.println("RECEIVED KEY" + msg.getKey());
                 app.push(msg.getKey(), null);
             }
         } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
+
+            try {
+                in.close();
+                out.close();
+                client.close();
+
+            } catch (IOException ioException) {
+                ioException.printStackTrace();
+            }
         }
     }
 }

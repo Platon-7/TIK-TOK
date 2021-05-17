@@ -7,6 +7,9 @@ public interface Publisher extends Node {
     ChannelName channelName = null;
 
     void addHashTag(String hashTag);
+
+    Boolean addHashTag(String videoName, String hashtag);
+
     void removeHashTag(String hashTag);
     void getBrokerList();
     Broker hashTopic(String hashTag);

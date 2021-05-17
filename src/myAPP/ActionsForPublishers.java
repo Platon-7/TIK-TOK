@@ -58,12 +58,15 @@ public class ActionsForPublishers extends Thread{
                 } while (Integer.parseInt(msg.getFlag()) > 0);
                 broker.newHashtags.add(msg.getChannelName());
                 hashCode=Broker.hashFunction(msg.channelName);
-                for (int i = 0; i < broker.newHashtags.size(); i++) {
-                    System.out.println("received " + broker.newHashtags.get(i));
-                }
                 broker.init();
             } catch (IOException | ClassNotFoundException | NoSuchAlgorithmException e) {
-                e.printStackTrace();
+                try {
+                    in.close();
+                    out.close();
+                    client.close();
+                } catch (IOException ioException) {
+                    ioException.printStackTrace();
+                }
             }
 
         }

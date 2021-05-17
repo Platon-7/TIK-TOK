@@ -23,7 +23,7 @@ public class BrokerNode implements Broker{
     boolean brokerFlag=false;
     String publisherIp="";
     String publisherPort="";
-    HashMap<String,Integer> listOfpubs=new HashMap<>();
+    HashMap<String,List<String>> listOfpubs=new HashMap<>();
 
     public BrokerNode(String PORT) {
         this.PORT=Integer.parseInt(PORT);
@@ -73,8 +73,15 @@ public class BrokerNode implements Broker{
 
     @Override
     public void pull(String key) {
-        Iterator<ActionsForConsumer> itr = consumers.iterator();
-        System.out.println("pull with " +key);
+        boolean someoneHadvideo=false;
+        Iterator<ActionsForConsumer> iterator = consumers.iterator();
+        while (iterator.hasNext()) {
+            ActionsForConsumer thread = iterator.next();
+            if (!thread.isAlive()) {
+                iterator.remove();
+            }
+        }
+        Iterator<ActionsForPublishers> iteratorPub = publishers.iterator();
         Message msg=new Message("Server",key,null,null);
         for(int i=0;i<consumers.size();i++){
             if (consumers.get(i).equals(Thread.currentThread())) {
@@ -83,36 +90,42 @@ public class BrokerNode implements Broker{
                         try {
                             publishers.get(j).out.writeObject(msg);
                             publishers.get(j).out.flush();
-                            System.out.println("sent request");
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                        try {
                             msg = (Message) publishers.get(j).in.readObject();
-                            consumers.get(i).out.writeObject(msg);
-                            consumers.get(i).out.flush();
-
-
                         } catch (IOException | ClassNotFoundException e) {
                             e.printStackTrace();
                         }
                         if (!msg.getFlag().equals("No results")) {
-                            int counter=Integer.parseInt(msg.getFlag());
+                            try {
+                                consumers.get(i).out.writeObject(msg);
+                                consumers.get(i).out.flush();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                            someoneHadvideo = true;
+                            int counter = Integer.parseInt(msg.getFlag());
                             do {
                                 do {
                                     try {
                                         msg = (Message) publishers.get(j).in.readObject();
                                         consumers.get(i).out.writeObject(msg);
                                         consumers.get(i).out.flush();
-                                        System.out.println("sent answer");
                                     } catch (IOException | ClassNotFoundException e) {
                                         e.printStackTrace();
                                     }
-                                }while(Integer.parseInt(msg.getFlag())>0);
+                                } while (Integer.parseInt(msg.getFlag()) > 0);
                                 counter--;
+                                if(counter>0)
+                                System.out.println("PULLED AND SENT VIDEO "+ msg.getKey());
                             } while (counter > 0);
-                            System.out.println("PULLED AND SENT VIDEO");
                         }
+                    }
+                }
+                if (!someoneHadvideo) {
+                    try {
+                        consumers.get(i).out.writeObject(msg);
+                        consumers.get(i).out.flush();
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
                 }
             }
@@ -135,7 +148,6 @@ public class BrokerNode implements Broker{
         Collections.sort(brokersList);
         for (int j = 0; j < brokersList.size(); j++) {
             for (int i = 0; i < newHashtags.size(); i++) {
-                System.out.println("In brokerNode " + newHashtags.get(i));
                 String tempHash = null;
                 if (!taken.contains(i)) {
                     try {
@@ -147,6 +159,7 @@ public class BrokerNode implements Broker{
                     if ((long) brokersList.get(j) > value) {
                         if (brokersList.get(j) == hashBrokers.get("Server")) {
                             topics.add(newHashtags.get(i));
+                            System.out.println("RECEIVED topic" + newHashtags.get(i));
                         } else {
                             sendHash = new Message("Server", newHashtags.get(i), "hash", null);
                             for (int h = 0; h < hashBrokers.size() - 1; h++) {
@@ -166,7 +179,7 @@ public class BrokerNode implements Broker{
                         taken.add(i);
                     } else {
                         if (j == hashBrokers.size() - 1) {
-
+                            System.out.println("RECEIVED topic: " + newHashtags.get(i));
                             topics.add(newHashtags.get(i));
                         }
                     }
@@ -188,7 +201,6 @@ public class BrokerNode implements Broker{
                     try {
                         brokers.get(i).out.writeObject(sendHash);
                         brokers.get(i).out.flush();
-                        System.out.println("sent Publisher INFO to brokers");
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -223,10 +235,6 @@ public class BrokerNode implements Broker{
                 }
                 counter--;
             }
-        }
-
-        for(int i=0;i<topics.size();i++){
-            System.out.println("TOPICS: " + topics.get(i));
         }
         newHashtags.removeAll(newHashtags);
     }
@@ -290,16 +298,14 @@ public class BrokerNode implements Broker{
                         hashBrokers.put("Broker"+temp,Long.valueOf(Broker.hashFunction(answer.channelName+answer.getKey()),16));
                         info.add(answer.channelName);
                         info.add(answer.getKey());
-                        listOfpubs.put(answer.channelName, Integer.valueOf(answer.getKey()));
                         brokersList.add(hashBrokers.get("Broker"+temp));
                         brokerInfo.put("Broker"+temp,info);
-                        System.out.println("Broker answer"+answer.getKey());
                         temp++;
                     }
                 }
             }
         } catch (IOException | ClassNotFoundException ioException) {
-            ioException.printStackTrace();
+
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }finally {
@@ -315,15 +321,14 @@ public class BrokerNode implements Broker{
     public void disconnect() {
 
     }
+
     public void updateHashtags(){
         Message sendHash;
-        List<String> newTopics= new ArrayList<>();
         List<Integer> taken = new ArrayList<>();
         List<Integer> pos =new ArrayList<>();
         long value;
         for (int j = 0; j < brokersList.size(); j++) {
             for (int i = 0; i < newHashtags.size(); i++) {
-                System.out.println("In brokerNode " + newHashtags.get(i));
                 String tempHash = null;
                 if (!taken.contains(i)) {
                     try {
@@ -334,7 +339,8 @@ public class BrokerNode implements Broker{
                     value = Long.valueOf(tempHash, 16);
                     if ((long) brokersList.get(j) > value) {
                         if (brokersList.get(j) == hashBrokers.get("Server")) {
-                            newTopics.add(newHashtags.get(i));
+                            topics.add(newHashtags.get(i));
+                            brokerInfo.get("Server").add(newHashtags.get(i));
                         } else {
                             sendHash = new Message("Server", newHashtags.get(i), "hash", null);
                             for (int h = 0; h < hashBrokers.size() - 1; h++) {
@@ -355,21 +361,22 @@ public class BrokerNode implements Broker{
                     } else {
                         if (j == hashBrokers.size() - 1) {
 
-                            newTopics.add(newHashtags.get(i));
+                            topics.add(newHashtags.get(i));
+                            brokerInfo.get("Server").add(newHashtags.get(i));
+
                         }
                     }
                 }
             }
         }
-        info.addAll(newTopics);
-        brokerInfo.put("Server",info);
+
+
         sendHash = new Message(publisherIp, publisherPort, "Publisher", null);
         for(int i=0;i<brokersList.size()-1;i++){
             if (pos.contains(i)) {
                 try {
                     brokers.get(i).out.writeObject(sendHash);
                     brokers.get(i).out.flush();
-                    System.out.println("sent Publisher INFO to brokers");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

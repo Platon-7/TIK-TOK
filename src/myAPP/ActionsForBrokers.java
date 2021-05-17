@@ -28,39 +28,40 @@ public class ActionsForBrokers extends Thread {
 
 
     public void run() {
-        Message key;
+        Message msg;
         try {
             Message info = new Message(client.getInetAddress().getHostAddress(), String.valueOf(broker.PORT), "Broker", null);
             out.writeObject(info);
             out.flush();
             System.out.println("Waiting  for messages from Server");
             while(true) {
-                key = (Message) in.readObject();
-                if (key.getFlag().equals("hash")) {
-                    broker.topics.add(key.getKey());
-                    System.out.println("RECEIVED hashtag" + key.getKey());
-                } else if(key.getFlag().equals("Publisher"))
+                msg = (Message) in.readObject();
+                if (msg.getFlag().equals("hash")) {
+                    broker.topics.add(msg.getKey());
+                    System.out.println("RECEIVED hashtag" + msg.getKey());
+                } else if(msg.getFlag().equals("Publisher"))
                 {
-                    broker.ConnectToPublisher(key.channelName,key.getKey());
+                    broker.ConnectToPublisher(msg.channelName,msg.getKey());
                 }else{
                     List<String> temp=new ArrayList<>();
-                    int counter=Integer.parseInt(key.getFlag());
+                    int counter=Integer.parseInt(msg.getFlag());
                     while(counter>0){
-                        temp.add(key.getKey());
+                        temp.add(msg.getKey());
                         counter--;
                         if(counter==0) break;
-                        key = (Message) in.readObject();
+                        msg = (Message) in.readObject();
                     }
-                    System.out.println("HASHMAP "+key.getChannelName()+" , ");
-                    for(int i=0;i<temp.size();i++)
-                    {
-                        System.out.println("has this hash" +temp.get(i));
-                    }
-                    broker.brokerInfo.put(key.getChannelName(),temp);
+                    broker.brokerInfo.put(msg.getChannelName(),temp);
                 }
             }
         } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
+            try {
+                in.close();
+                out.close();
+                client.close();
+            } catch (IOException ioException) {
+                ioException.printStackTrace();
+            }
         }
 
     }
