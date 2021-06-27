@@ -2,9 +2,9 @@
   <configuration default="false" name="BrokerNode" type="Application" factoryName="Application" singleton="false" nameIsGenerated="true">
     <option name="ALTERNATIVE_JRE_PATH" value="1.8" />
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
-    <option name="MAIN_CLASS_NAME" value="myAPP.BrokerNode" />
+    <option name="MAIN_CLASS_NAME" value="com.example.myAPP.BrokerNode" />
     <module name="TIK-TOK" />
-    <option name="PROGRAM_PARAMETERS" value="4321" />
+    <option name="PROGRAM_PARAMETERS" value="4322" />
     <extension name="coverage">
       <pattern>
         <option name="PATTERN" value="myAPP.*" />
