@@ -5,6 +5,8 @@ be similar to the function of TIK-TOK when it comes to the server structure. The
 
 ## Syllabus
 
+The syllabus of the course overall covered:
+
 - Introduction to distributed systems.
 - Non-centralized systems.
 - Goals and services of distributed systems.
